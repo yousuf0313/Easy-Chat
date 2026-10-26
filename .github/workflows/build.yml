@@ -28,7 +28,7 @@ jobs:
 
       - name: Extract Project Files
         run: |
-          if ls ec-b64/part1-*.b64 >/dev/null 2>&1; then cat ec-b64/part1-*.b64 | base64 -d > Easy-Chat-part-1.zip; echo "c9d3fe6257f41e5f99ac2474ad6035a8556a808ef4ce8503cde7074485364eab  Easy-Chat-part-1.zip" | sha256sum -c - || { echo "::error::Decoded source zip failed its sha256 check"; exit 1; }; fi
+          if ls ec-b64/part1-*.b64 >/dev/null 2>&1; then cat ec-b64/part1-*.b64 | base64 -d > Easy-Chat-part-1.zip; echo "9815cd385f0c55bc0fedc6110595ef003ca4a4f3a0710d02a5b82360af807765  Easy-Chat-part-1.zip" | sha256sum -c - || { echo "::error::Decoded source zip failed its sha256 check"; exit 1; }; fi
           (cat Easy-Chat-part-* > combined.zip 2>/dev/null || cat Bolo-Chat-part-* > combined.zip 2>/dev/null) && unzip -o combined.zip || for f in *.zip; do echo "Trying $f"; unzip -o "$f" && break; done
           rm -f bun.lock package-lock.json
           ls
