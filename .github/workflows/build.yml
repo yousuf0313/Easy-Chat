@@ -28,7 +28,7 @@ jobs:
 
       - name: Extract Project Files
         run: |
-          if ls ec-b64/part1-*.b64 >/dev/null 2>&1; then cat ec-b64/part1-*.b64 | base64 -d > Easy-Chat-part-1.zip; echo "0792cd492a90d203f10219303afb2a26ba11e18d78962a078c9414887f947c85  Easy-Chat-part-1.zip" | sha256sum -c - || { echo "::error::Decoded source zip failed its sha256 check"; exit 1; }; fi
+          if ls ec-b64/part1-*.b64 >/dev/null 2>&1; then cat ec-b64/part1-*.b64 | base64 -d > Easy-Chat-part-1.zip; echo "c9d3fe6257f41e5f99ac2474ad6035a8556a808ef4ce8503cde7074485364eab  Easy-Chat-part-1.zip" | sha256sum -c - || { echo "::error::Decoded source zip failed its sha256 check"; exit 1; }; fi
           (cat Easy-Chat-part-* > combined.zip 2>/dev/null || cat Bolo-Chat-part-* > combined.zip 2>/dev/null) && unzip -o combined.zip || for f in *.zip; do echo "Trying $f"; unzip -o "$f" && break; done
           rm -f bun.lock package-lock.json
           ls
@@ -408,6 +408,52 @@ jobs:
               print('::error::FAIL: easychat://auth/finish intent-filter incomplete inside MainActivity - missing: ' + ', '.join(missing) + '; refusing to ship')
               sys.exit(1)
           print('Verified: easychat://auth/finish intent-filter declared inside MainActivity')
+          PYEOF
+
+      - name: Declare Email Link HTTPS Deep Link In Manifest
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          if 'rabta-24267.firebaseapp.com' in s:
+              print('email-link https deep link already declared')
+          else:
+              m = re.search(r'<activity\b[^>]*android:name="\.MainActivity"[\s\S]*?</activity>', s)
+              if not m:
+                  print('::error::FAIL: MainActivity <activity> block not found in AndroidManifest.xml')
+                  sys.exit(1)
+              block = m.group(0)
+              line_start = s.rfind('\n', 0, m.start()) + 1
+              indent = re.match(r'[ \t]*', s[line_start:m.start()]).group(0) + '    '
+              intent_filter = (
+                  indent + '<intent-filter>\n'
+                  + indent + '    <action android:name="android.intent.action.VIEW" />\n'
+                  + indent + '    <category android:name="android.intent.category.DEFAULT" />\n'
+                  + indent + '    <category android:name="android.intent.category.BROWSABLE" />\n'
+                  + indent + '    <data android:scheme="https" android:host="rabta-24267.firebaseapp.com" android:pathPrefix="/auth" />\n'
+                  + indent + '</intent-filter>\n'
+                  + indent[:-4]
+              )
+              new_block = block[:-len('</activity>')] + intent_filter + '</activity>'
+              s = s[:m.start()] + new_block + s[m.end():]
+              open(p, 'w', encoding='utf-8').write(s)
+              print('email-link https intent-filter inserted into MainActivity')
+          PYEOF
+          grep -A5 'firebaseapp' android/app/src/main/AndroidManifest.xml
+
+      - name: Verify Email Link HTTPS Deep Link In Manifest
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys
+          s = open('android/app/src/main/AndroidManifest.xml', encoding='utf-8').read()
+          m = re.search(r'<activity\b[^>]*android:name="\.MainActivity"[\s\S]*?</activity>', s)
+          block = m.group(0) if m else ''
+          missing = [t for t in ('android:scheme="https"', 'rabta-24267.firebaseapp.com', 'android:pathPrefix="/auth"') if t not in block]
+          if missing:
+              print('::error::FAIL: email-link https intent-filter incomplete inside MainActivity - missing: ' + ', '.join(missing) + '; refusing to ship')
+              sys.exit(1)
+          print('Verified: email-link https intent-filter declared inside MainActivity')
           PYEOF
 
       - name: Declare YS Store Queries In Manifest
